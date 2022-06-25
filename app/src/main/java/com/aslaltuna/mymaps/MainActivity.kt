@@ -1,11 +1,16 @@
 package com.aslaltuna.mymaps
 
+import android.Manifest
+import android.annotation.SuppressLint
 import android.app.Activity
 import android.content.Context
 import android.content.DialogInterface
 import android.content.Intent
+import android.content.pm.PackageManager
+import android.location.LocationManager
 import androidx.appcompat.app.AppCompatActivity
 import android.os.Bundle
+import android.provider.Settings
 import android.util.Log
 import android.view.LayoutInflater
 import android.widget.EditText
@@ -14,30 +19,39 @@ import android.widget.Toast
 import androidx.activity.result.ActivityResultLauncher
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AlertDialog
+import androidx.core.app.ActivityCompat
 import androidx.recyclerview.widget.LinearLayoutManager
 import com.aslaltuna.mymaps.models.Place
 import com.aslaltuna.mymaps.models.UserMap
+import com.google.android.gms.location.FusedLocationProviderClient
+import com.google.android.gms.location.LocationServices
 import com.google.android.gms.maps.model.LatLng
 import com.google.android.gms.maps.model.MarkerOptions
 import kotlinx.android.synthetic.main.activity_main.*
 import java.io.*
+import com.google.android.gms.location.*
 
 private const val TAG = "MainActivity"
 const val EXTRA_USER_MAP = "EXTRA_USER_MAP"
 const val EXTRA_MAP_TITLE = "EXTRA_MAP_TITLE"
 const val FILENAME = "UserMaps.data"
+const val CURRENT_LOCATION = "CURRENT_LOCATION"
 
 class MainActivity : AppCompatActivity() {
 
     private lateinit var userMaps: MutableList<UserMap>
     private lateinit var mapAdapter: MapsAdapter
     private lateinit var resultLauncher: ActivityResultLauncher<Intent>
+    private lateinit var fusedLocationProviderClient: FusedLocationProviderClient
+    private lateinit var startLatLng: LatLng
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main)
 
         userMaps = deserializeUserMaps(this).toMutableList()
+
+        checkDatasetSize()
 
         // Set layout manager on recycler view
         rvMaps.layoutManager = LinearLayoutManager(this)
@@ -69,6 +83,18 @@ class MainActivity : AppCompatActivity() {
         fabCreateMap.setOnClickListener {
             Log.i(TAG, "FAB Clicked")
             showAlertDialogue()
+        }
+
+        // Get current location
+        fusedLocationProviderClient = LocationServices.getFusedLocationProviderClient(this)
+        getCurrentLocation()
+    }
+
+    fun checkDatasetSize() {
+        if (userMaps.size == 0) {
+            tvEmptyDataset.text = "No maps to display. Start by pressing + to add a map!"
+        } else {
+            tvEmptyDataset.text = ""
         }
     }
 
@@ -115,6 +141,7 @@ class MainActivity : AppCompatActivity() {
 
             val intent = Intent(this@MainActivity, CreateMapActivity::class.java)
             intent.putExtra(EXTRA_MAP_TITLE, title)
+            intent.putExtra(CURRENT_LOCATION, startLatLng)
 
             resultLauncher.launch(intent)
 
@@ -123,6 +150,76 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
+    override fun onRequestPermissionsResult(
+        requestCode: Int,
+        permissions: Array<out String>,
+        grantResults: IntArray
+    ) {
+        super.onRequestPermissionsResult(requestCode, permissions, grantResults)
+
+        if (requestCode == PERMISSION_REQUEST_ACCESS_LOCATION) {
+            if (grantResults.isNotEmpty() && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
+//                Toast.makeText(applicationContext, "Location Services Enabled", Toast.LENGTH_SHORT).show()
+                getCurrentLocation()
+            } else {
+                Toast.makeText(applicationContext, "Denied Location Services Access", Toast.LENGTH_SHORT).show()
+            }
+        }
+    }
+
+    @SuppressLint("MissingPermission")
+    private fun getCurrentLocation() {
+        if (checkPermission()) {
+            if (isLocationEnabled()) {
+                fusedLocationProviderClient.lastLocation.addOnCompleteListener(this) {
+                    val location = it.result
+                    if (location == null) {
+                        Toast.makeText(this, "Null received", Toast.LENGTH_SHORT).show()
+                    } else {
+                        Toast.makeText(this, "Success!", Toast.LENGTH_SHORT).show()
+                        startLatLng = LatLng(location.latitude, location.longitude)
+                    }
+                }
+            } else {
+                // Open settings app
+                Toast.makeText(this, "Turn on Location Services", Toast.LENGTH_SHORT).show()
+                val intent = Intent(Settings.ACTION_LOCATION_SOURCE_SETTINGS)
+                startActivity(intent)
+            }
+        } else {
+            // Request for permissions
+            requestPermission()
+            Log.i(TAG, "requestPermission()")
+        }
+    }
+
+    private fun isLocationEnabled(): Boolean {
+        val locationManager: LocationManager = getSystemService(Context.LOCATION_SERVICE) as LocationManager
+        return locationManager.isProviderEnabled(LocationManager.GPS_PROVIDER) ||
+                locationManager.isProviderEnabled(LocationManager.NETWORK_PROVIDER)
+    }
+
+    private fun requestPermission() {
+        ActivityCompat.requestPermissions(this, arrayOf(
+            Manifest.permission.ACCESS_COARSE_LOCATION,
+            Manifest.permission.ACCESS_FINE_LOCATION),
+            PERMISSION_REQUEST_ACCESS_LOCATION)
+    }
+
+    companion object {
+        private const val PERMISSION_REQUEST_ACCESS_LOCATION = 100
+    }
+
+    private fun checkPermission(): Boolean {
+        if (ActivityCompat.checkSelfPermission(this,
+                Manifest.permission.ACCESS_COARSE_LOCATION) == PackageManager.PERMISSION_GRANTED &&
+            ActivityCompat.checkSelfPermission(this,
+                Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED) {
+            return true
+        }
+
+        return false
+    }
 
     private fun generateSampleData(): List<UserMap> {
         return listOf(

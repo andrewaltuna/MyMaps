@@ -26,4 +26,5 @@
         android:paddingEnd="10dp"
         android:paddingBottom="10dp"
         tools:text="Manila, Quezon City" />
+
 </LinearLayout>

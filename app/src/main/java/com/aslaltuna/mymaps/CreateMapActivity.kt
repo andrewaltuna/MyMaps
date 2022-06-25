@@ -42,7 +42,6 @@ class CreateMapActivity : AppCompatActivity(), OnMapReadyCallback {
 
     private lateinit var mMap: GoogleMap
     private lateinit var binding: ActivityCreateMapBinding
-    private lateinit var fusedLocationProviderClient: FusedLocationProviderClient
 
     // Collates user markers for UserMap creation
     private var markers: MutableList<Marker> = mutableListOf()
@@ -64,81 +63,6 @@ class CreateMapActivity : AppCompatActivity(), OnMapReadyCallback {
                 .setAction("Ok", null)
                 .show()
         }
-
-        // Get current location
-        fusedLocationProviderClient = LocationServices.getFusedLocationProviderClient(this)
-
-        getCurrentLocation()
-
-    }
-
-    override fun onRequestPermissionsResult(
-        requestCode: Int,
-        permissions: Array<out String>,
-        grantResults: IntArray
-    ) {
-        super.onRequestPermissionsResult(requestCode, permissions, grantResults)
-
-        if (requestCode == PERMISSION_REQUEST_ACCESS_LOCATION) {
-            if (grantResults.isNotEmpty() && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
-                Toast.makeText(applicationContext, "Location Services Enabled", Toast.LENGTH_SHORT).show()
-                getCurrentLocation()
-            } else {
-                Toast.makeText(applicationContext, "Denied Location Services Access", Toast.LENGTH_SHORT).show()
-            }
-        }
-    }
-
-    @SuppressLint("MissingPermission")
-    private fun getCurrentLocation() {
-        if (checkPermission()) {
-            if (isLocationEnabled()) {
-                fusedLocationProviderClient.lastLocation.addOnCompleteListener(this) {
-                    val location = it.result
-                    if (location == null) {
-                        Toast.makeText(this, "Null received", Toast.LENGTH_SHORT).show()
-                    } else {
-                        Toast.makeText(this, "Success!", Toast.LENGTH_SHORT).show()
-                    }
-                }
-            } else {
-                // Open settings app
-                Toast.makeText(this, "Turn on Location Services", Toast.LENGTH_SHORT).show()
-                val intent = Intent(Settings.ACTION_LOCATION_SOURCE_SETTINGS)
-                startActivity(intent)
-            }
-        } else {
-            // Request for permissions
-            requestPermission()
-        }
-    }
-
-    private fun isLocationEnabled(): Boolean {
-        val locationManager: LocationManager = getSystemService(Context.LOCATION_SERVICE) as LocationManager
-        return locationManager.isProviderEnabled(LocationManager.GPS_PROVIDER) ||
-                locationManager.isProviderEnabled(LocationManager.NETWORK_PROVIDER)
-    }
-
-    private fun requestPermission() {
-        ActivityCompat.requestPermissions(this, arrayOf(
-            android.Manifest.permission.ACCESS_COARSE_LOCATION,
-            android .Manifest.permission.ACCESS_FINE_LOCATION),
-            PERMISSION_REQUEST_ACCESS_LOCATION)
-    }
-
-    companion object {
-        private const val PERMISSION_REQUEST_ACCESS_LOCATION = 100
-    }
-
-    private fun checkPermission(): Boolean {
-        if (ActivityCompat.checkSelfPermission(this,
-                Manifest.permission.ACCESS_COARSE_LOCATION) == PackageManager.PERMISSION_GRANTED &&
-            ActivityCompat.checkSelfPermission(this,
-                android.Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED) {
-            return true
-        }
-
-        return false
     }
 
     override fun onCreateOptionsMenu(menu: Menu?): Boolean {
@@ -187,7 +111,14 @@ class CreateMapActivity : AppCompatActivity(), OnMapReadyCallback {
         }
         // Add a marker in Sydney and move the camera
         val philippines = LatLng(12.87, 121.77)
-        mMap.moveCamera(CameraUpdateFactory.newLatLngZoom(philippines, 10f))
+
+        val startLatLng = intent.getParcelableExtra<LatLng>(CURRENT_LOCATION)
+
+        Log.i(TAG, "$startLatLng")
+
+        val defaultZoom = startLatLng ?: LatLng(0.0,0.0)
+
+        mMap.moveCamera(CameraUpdateFactory.newLatLngZoom(defaultZoom, 10f))
     }
 
     private fun showAlertDialogue(LatLng: LatLng) {
