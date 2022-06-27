@@ -10,10 +10,11 @@ import androidx.recyclerview.widget.RecyclerView
 import com.aslaltuna.mymaps.models.UserMap
 
 private const val TAG = "MapsAdapter"
-class MapsAdapter(val context: Context, val userMaps: List<UserMap>, val onClickListener: OnClickListener) : RecyclerView.Adapter<MapsAdapter.ViewHolder>() {
+class MapsAdapter(val context: Context, val userMaps: List<UserMap>, val recyclerViewInterface: RecyclerViewInterface) : RecyclerView.Adapter<MapsAdapter.ViewHolder>() {
 
-    interface OnClickListener {
+    interface RecyclerViewInterface {
         fun onItemClick(position: Int)
+        fun onItemLongClick(position: Int)
     }
 
     class ViewHolder(itemView: View) : RecyclerView.ViewHolder(itemView)
@@ -27,7 +28,7 @@ class MapsAdapter(val context: Context, val userMaps: List<UserMap>, val onClick
         val userMap = userMaps[position]
         holder.itemView.setOnClickListener {
             Log.i(TAG, "Tapped on position $position")
-            onClickListener.onItemClick(position)
+            recyclerViewInterface.onItemClick(position)
         }
 
         val textViewTitle = holder.itemView.findViewById<TextView>(R.id.tvMapTitle)
@@ -37,6 +38,11 @@ class MapsAdapter(val context: Context, val userMaps: List<UserMap>, val onClick
 
         val placeList = userMap.places.map { it.title }
         textViewSubTitle.text = placeList.joinToString(", ")
+
+        holder.itemView.setOnLongClickListener {
+            recyclerViewInterface.onItemLongClick(position)
+            return@setOnLongClickListener true
+        }
     }
 
     override fun getItemCount() = userMaps.size

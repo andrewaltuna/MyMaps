@@ -31,13 +31,17 @@ import kotlinx.android.synthetic.main.activity_main.*
 import java.io.*
 import com.google.android.gms.location.*
 
-private const val TAG = "MainActivity"
 const val EXTRA_USER_MAP = "EXTRA_USER_MAP"
 const val EXTRA_MAP_TITLE = "EXTRA_MAP_TITLE"
 const val FILENAME = "UserMaps.data"
 const val CURRENT_LOCATION = "CURRENT_LOCATION"
 
 class MainActivity : AppCompatActivity() {
+
+    companion object {
+        private const val TAG = "MainActivity"
+        private const val PERMISSION_REQUEST_ACCESS_LOCATION = 100
+    }
 
     private lateinit var userMaps: MutableList<UserMap>
     private lateinit var mapAdapter: MapsAdapter
@@ -56,7 +60,7 @@ class MainActivity : AppCompatActivity() {
         // Set layout manager on recycler view
         rvMaps.layoutManager = LinearLayoutManager(this)
         // Set adapter on recycler view
-        mapAdapter = MapsAdapter(this, userMaps, object: MapsAdapter.OnClickListener{
+        mapAdapter = MapsAdapter(this, userMaps, object: MapsAdapter.RecyclerViewInterface {
             override fun onItemClick(position: Int) {
                 Log.i(TAG, "onItemClick $position")
                 // Navigate to different screen once clicked
@@ -65,9 +69,18 @@ class MainActivity : AppCompatActivity() {
                 startActivity(intent)
                 overridePendingTransition(R.anim.slide_in_right, R.anim.slide_out_left)
             }
+
+            override fun onItemLongClick(position: Int) {
+                userMaps.remove(userMaps[position])
+                mapAdapter.notifyItemRemoved(position)
+                checkDatasetSize()
+                serializeUserMaps(this@MainActivity, userMaps)
+            }
         })
 
         rvMaps.adapter = mapAdapter
+
+        //
 
         resultLauncher = registerForActivityResult(ActivityResultContracts.StartActivityForResult()) {
             if (it.resultCode == Activity.RESULT_OK) {
@@ -76,6 +89,7 @@ class MainActivity : AppCompatActivity() {
                 Log.i(TAG, "onActivityResult")
                 userMaps.add(userMap)
                 mapAdapter.notifyItemInserted(userMaps.size - 1)
+                checkDatasetSize()
                 serializeUserMaps(this, userMaps)
             }
         }
@@ -90,13 +104,18 @@ class MainActivity : AppCompatActivity() {
         getCurrentLocation()
     }
 
-    fun checkDatasetSize() {
+    // VALIDATOR AND RESPONSE FOR EMPTY DATAFILE
+
+    private fun checkDatasetSize() {
+        Log.i(TAG, "${userMaps.size}")
         if (userMaps.size == 0) {
             tvEmptyDataset.text = "No maps to display. Start by pressing + to add a map!"
         } else {
             tvEmptyDataset.text = ""
         }
     }
+
+    // SAVING TO AND LOADING IN DATAFILE
 
     private fun serializeUserMaps(context: Context, userMaps: List<UserMap>) {
         Log.i(TAG, "serializeUserMaps")
@@ -119,6 +138,8 @@ class MainActivity : AppCompatActivity() {
         Log.i(TAG, "Getting file from directory ${context.filesDir}")
         return File(context.filesDir, FILENAME)
     }
+
+    // CREATE MAP POPUP DIALOGUE
 
     private fun showAlertDialogue() {
 
@@ -150,6 +171,8 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
+    // GET CURRENT LOCATION
+
     override fun onRequestPermissionsResult(
         requestCode: Int,
         permissions: Array<out String>,
@@ -169,6 +192,7 @@ class MainActivity : AppCompatActivity() {
 
     @SuppressLint("MissingPermission")
     private fun getCurrentLocation() {
+        Log.i(TAG, "getCurrentLocation()")
         if (checkPermission()) {
             if (isLocationEnabled()) {
                 fusedLocationProviderClient.lastLocation.addOnCompleteListener(this) {
@@ -176,8 +200,9 @@ class MainActivity : AppCompatActivity() {
                     if (location == null) {
                         Toast.makeText(this, "Null received", Toast.LENGTH_SHORT).show()
                     } else {
-                        Toast.makeText(this, "Success!", Toast.LENGTH_SHORT).show()
+//                        Toast.makeText(this, "Success!", Toast.LENGTH_SHORT).show()
                         startLatLng = LatLng(location.latitude, location.longitude)
+                        Log.i(TAG, "$startLatLng")
                     }
                 }
             } else {
@@ -206,10 +231,6 @@ class MainActivity : AppCompatActivity() {
             PERMISSION_REQUEST_ACCESS_LOCATION)
     }
 
-    companion object {
-        private const val PERMISSION_REQUEST_ACCESS_LOCATION = 100
-    }
-
     private fun checkPermission(): Boolean {
         if (ActivityCompat.checkSelfPermission(this,
                 Manifest.permission.ACCESS_COARSE_LOCATION) == PackageManager.PERMISSION_GRANTED &&
@@ -220,6 +241,8 @@ class MainActivity : AppCompatActivity() {
 
         return false
     }
+
+    // POPULATE DUMMY DATA
 
     private fun generateSampleData(): List<UserMap> {
         return listOf(

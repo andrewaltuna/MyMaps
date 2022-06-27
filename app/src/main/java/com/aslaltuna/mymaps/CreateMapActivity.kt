@@ -36,9 +36,11 @@ import com.google.android.gms.location.LocationServices
 import com.google.android.gms.maps.model.Marker
 import com.google.android.material.snackbar.Snackbar
 
-private const val TAG = "CreateMapActivity"
-
 class CreateMapActivity : AppCompatActivity(), OnMapReadyCallback {
+
+    companion object {
+        private const val TAG = "CreateMapActivity"
+    }
 
     private lateinit var mMap: GoogleMap
     private lateinit var binding: ActivityCreateMapBinding
@@ -109,15 +111,13 @@ class CreateMapActivity : AppCompatActivity(), OnMapReadyCallback {
             Log.i(TAG, "$it")
             showAlertDialogue(it)
         }
-        // Add a marker in Sydney and move the camera
-        val philippines = LatLng(12.87, 121.77)
 
+        // Get coordinates from Intent
         val startLatLng = intent.getParcelableExtra<LatLng>(CURRENT_LOCATION)
 
         Log.i(TAG, "$startLatLng")
 
         val defaultZoom = startLatLng ?: LatLng(0.0,0.0)
-
         mMap.moveCamera(CameraUpdateFactory.newLatLngZoom(defaultZoom, 10f))
     }
 

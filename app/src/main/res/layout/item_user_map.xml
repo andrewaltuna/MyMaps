@@ -27,4 +27,11 @@
         android:paddingBottom="10dp"
         tools:text="Manila, Quezon City" />
 
+    <View
+        android:id="@+id/divider"
+        android:layout_width="375dp"
+        android:layout_height="1dp"
+        android:layout_gravity="center"
+        android:background="?android:attr/listDivider" />
+
 </LinearLayout>
